@@ -37,13 +37,13 @@ class VAE(nn.Module):
         x = x.view(x.size(0), -1)
         mu, logvar = self.encode(x)
         z_samples = self.samples_from_gaussian(mu,logvar)
-        likelyhoods = []
-        for z_sample in z_samples:
+        likelyhoods = torch.zeros((10,x.size(0)))
+        for ind , z_sample in enumerate(z_samples):
             x_mean, x_logvar = self.decode(z_sample)
             likelyhood_per_pixel = torch.exp(-0.5 * torch.square(x - x_mean) * torch.exp(-x_logvar))/(torch.sqrt(2*np.pi*torch.exp(x_logvar)))
-            likelyhood = torch.sum(likelyhood_per_pixel,axis=[1])
-            likelyhoods.append(likelyhood)
-        return torch.cat(likelyhoods).view(10,x.size(0))
+            likelyhood = torch.mean(likelyhood_per_pixel,axis=[1])
+            likelyhoods[ind] = likelyhood
+        return torch.mean(likelyhoods,axis=0)
 
     @staticmethod
     def sample_from_gaussian(mean,logvar):

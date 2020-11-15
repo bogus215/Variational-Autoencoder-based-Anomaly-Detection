@@ -40,13 +40,15 @@ Reconstruction_prob = []
 label_list = []
 for idx, (feature, label) in enumerate(config.loader.test_iter):
     feature = feature.cuda(config.gpu_device)
-    probability = config.VAE.reconstruction_probability(feature).detach().mean(axis=0)
+    probability = config.VAE.reconstruction_probability(feature).detach()
     Reconstruction_prob.append(probability)
     label_list.append(label)
 Reconstruction_prob = torch.cat(Reconstruction_prob).cpu().numpy()
 threshold = np.quantile(Reconstruction_prob,q=0.5)
 novelty_detection = np.where(Reconstruction_prob <= threshold,1,0)
 label_list = np.where(torch.cat(label_list).numpy() ==0 , 1 , 0)
+print('VAE novelty detection performance',return_result(novelty_detection,label_list))
+
 
 #%% novelty detection - vae
 config.AE.eval()
@@ -61,4 +63,4 @@ Reconstruction_error = torch.cat(Reconstruction_error).detach().cpu().numpy()
 threshold = np.quantile(Reconstruction_error,q=0.5)
 novelty_detection = np.where(Reconstruction_error < threshold,0,1)
 label_list = np.where(torch.cat(label_list).numpy() ==0 , 1 , 0)
-return_result(novelty_detection,label_list)
+print('AE novelty detection performance',return_result(novelty_detection,label_list))
