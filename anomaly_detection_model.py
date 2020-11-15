@@ -4,8 +4,8 @@ from paper_model import VAE,AE
 from easydict import EasyDict as edict
 import torch
 import os
+import numpy as np
 from sklearn.metrics import accuracy_score , f1_score, precision_score, recall_score, confusion_matrix
-import matplotlib.pyplot as plt
 
 #%% utils
 def return_result(y_pred, y_true):
@@ -34,7 +34,7 @@ config.AE = AE(input_size=28*28).cuda(config.gpu_device)
 parameter = torch.load(os.path.join(config.parameter_path,'best_parameter_Abnormal_class_0_ae.pth'))
 config.AE.load_state_dict(parameter)
 
-#%% novelty detection
+#%% novelty detection - vae
 config.VAE.eval()
 Reconstruction_prob = []
 label_list = []
@@ -44,29 +44,21 @@ for idx, (feature, label) in enumerate(config.loader.test_iter):
     Reconstruction_prob.append(probability)
     label_list.append(label)
 Reconstruction_prob = torch.cat(Reconstruction_prob).cpu().numpy()
-threshold = np.quantile(Reconstruction_prob,q=0.1)
+threshold = np.quantile(Reconstruction_prob,q=0.5)
 novelty_detection = np.where(Reconstruction_prob <= threshold,1,0)
 label_list = np.where(torch.cat(label_list).numpy() ==0 , 1 , 0)
 
-
-
-
-def show_visual_progress(config, rows=5, title=None):
-
-    fig = plt.figure(figsize=(10, 8))
-    if title:
-        plt.title(title)
-
-    image_rows = []
-    for idx, (feature, label) in enumerate(config.loader.test_iter):
-        if rows == idx:
-            break
-        feature = feature.cuda(config.gpu_device)
-        images = feature.detach().cpu().numpy().reshape(feature.size(0), 28, 28)
-        images_idxs = [list(label.numpy()).index(x) for x in range(1,10)]
-        combined_images = np.concatenate([images[x].reshape(28, 28) for x in images_idxs],
-                                         1)
-        image_rows.append(combined_images)
-
-    plt.imshow(np.concatenate(image_rows))
-    plt.savefig('./img/' + title + '.png', dpi=300)
+#%% novelty detection - vae
+config.AE.eval()
+Reconstruction_error = []
+label_list = []
+for idx, (feature, label) in enumerate(config.loader.test_iter):
+    feature = feature.cuda(config.gpu_device)
+    error = torch.mean(torch.square(config.AE(feature) - feature), axis=[2,3,1])
+    Reconstruction_error.append(error)
+    label_list.append(label)
+Reconstruction_error = torch.cat(Reconstruction_error).detach().cpu().numpy()
+threshold = np.quantile(Reconstruction_error,q=0.5)
+novelty_detection = np.where(Reconstruction_error < threshold,0,1)
+label_list = np.where(torch.cat(label_list).numpy() ==0 , 1 , 0)
+return_result(novelty_detection,label_list)

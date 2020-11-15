@@ -24,10 +24,10 @@ class loader():
         normal_class_idx = dataset.targets != args.abnormal_class # args.abnormal_class is zero class
         dataset.targets = dataset.targets[normal_class_idx]
         dataset.data = dataset.data[normal_class_idx]
-				'''train dataset은 1과 9 사이의 정상 데이터로만 구성한다.'''
+        '''train dataset은 1과 9 사이의 정상 데이터로만 구성한다.'''
 
         train_dataset , valid_dataset = random_split(dataset , [int(dataset.__len__()*0.8), dataset.__len__() - int(dataset.__len__()*0.8) ])
-				'''train 80% , validation 20% split'''
+        '''train 80% , validation 20% split'''
 
 
         test_dataset = MNIST(download_root, transform=mnist_transform, train=False, download=True)

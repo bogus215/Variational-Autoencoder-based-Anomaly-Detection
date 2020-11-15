@@ -132,6 +132,7 @@ def main():
     parser.add_argument('--experiment', type=str, default='Abnormal_class_0_vae', help='experiment name')
     parser.add_argument('--abnormal_class', type=int, default=0, help='abnormal class')
 
+
     args = parser.parse_args()
     args.loader = loader(args)
     args.model = VAE(input_size=28*28).cuda(args.gpu_device)
