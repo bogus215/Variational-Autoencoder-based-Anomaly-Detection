@@ -5,6 +5,7 @@ from easydict import EasyDict as edict
 import torch
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score , f1_score, precision_score, recall_score, confusion_matrix
 
 #%% utils
@@ -48,9 +49,27 @@ threshold = np.quantile(Reconstruction_prob,q=0.5)
 novelty_detection = np.where(Reconstruction_prob <= threshold,1,0)
 label_list = np.where(torch.cat(label_list).numpy() ==0 , 1 , 0)
 print('VAE novelty detection performance',return_result(novelty_detection,label_list))
+print('VAE novelty detection confusion matrix',confusion_matrix(novelty_detection,label_list))
+
+#%% Reconstruction이 효과적으로 되지 않았던 이미지 데이터 시각화 - vae
+feature_list_low = []
+feature_list_high = []
+for idx, (feature, label) in enumerate(config.loader.test_iter):
+    feature = feature.cuda(config.gpu_device)
+    probability = config.VAE.reconstruction_probability(feature).detach()
+    feature_list_low.append(feature[probability <= threshold]) # Reconstruction probability가 중위수가 낮았던 feature 추출
+    feature_list_high.append(feature[probability > threshold]) # Reconstruction probability가 중위수가 낮았던 feature 추출
+
+feature_list_low , feature_list_high = torch.cat(feature_list_low) , torch.cat(feature_list_high)
+feature_list_low = feature_list_low[np.random.choice(feature_list_low.__len__(),10)] # 복원이 잘 되지 않았던 이미지 중 10개 추출
+feature_list_high = feature_list_high[np.random.choice(feature_list_high.__len__(),10)] # 복원이 잘 되지 않았던 이미지 중 10개 추출
+
+reconstrucion_visual_vae(feature_list_low,config,title= 'vae_reconstruction_with_low_probability')
+reconstrucion_visual_vae(feature_list_high,config,title= 'vae_reconstruction_with_high_probability')
 
 
-#%% novelty detection - vae
+
+#%% novelty detection - ae
 config.AE.eval()
 Reconstruction_error = []
 label_list = []
@@ -64,3 +83,40 @@ threshold = np.quantile(Reconstruction_error,q=0.5)
 novelty_detection = np.where(Reconstruction_error < threshold,0,1)
 label_list = np.where(torch.cat(label_list).numpy() ==0 , 1 , 0)
 print('AE novelty detection performance',return_result(novelty_detection,label_list))
+print('AE novelty detection performance',confusion_matrix(novelty_detection,label_list))
+
+#%% Reconstruction이 효과적으로 되지 않았던 이미지 데이터 시각화 - ae
+feature_list_low = []
+feature_list_high = []
+for idx, (feature, label) in enumerate(config.loader.test_iter):
+    feature = feature.cuda(config.gpu_device)
+    error = torch.mean(torch.square(config.AE(feature) - feature), axis=[2, 3, 1])
+    feature_list_low.append(feature[error > threshold]) # Reconstruction error가 중위수가 높았던 feature 추출
+    feature_list_high.append(feature[error <= threshold]) # Reconstruction error가 중위수가 낮았던 feature 추출
+
+feature_list_low , feature_list_high= torch.cat(feature_list_low) , torch.cat(feature_list_high)
+feature_list_low = feature_list_low[np.random.choice(feature_list_low.__len__(),10)] # 복원이 잘 되지 않았던 이미지 중 10개 추출
+feature_list_high = feature_list_high[np.random.choice(feature_list_high.__len__(),10)] # 복원이 잘 되지 않았던 이미지 중 10개 추출
+reconstrucion_visual_ae(feature_list_low,config,title= 'ae_reconstruction_with_high_error')
+reconstrucion_visual_ae(feature_list_high,config,title= 'ae_reconstruction_with_low_error')
+
+
+def reconstrucion_visual_vae(feature,config,title):
+    fig = plt.figure(figsize=(10, 8))
+    plt.title(title)
+    images = config.VAE(feature.squeeze(1).view(10,-1))[0].detach().cpu().numpy().reshape(10, 28, 28)
+    first_row = np.concatenate(images[:5,:,:],axis=1)
+    second_row = np.concatenate(images[5:,:,:],axis=1)
+    plt.imshow(np.concatenate([first_row,second_row]))
+    plt.savefig(f'./img/{title}.png')
+    plt.show()
+
+def reconstrucion_visual_ae(feature,config,title):
+    fig = plt.figure(figsize=(10, 8))
+    plt.title(title)
+    images = config.AE(feature.squeeze(1).view(10,-1)).detach().cpu().numpy().reshape(10, 28, 28)
+    first_row = np.concatenate(images[:5,:,:],axis=1)
+    second_row = np.concatenate(images[5:,:,:],axis=1)
+    plt.imshow(np.concatenate([first_row,second_row]))
+    plt.savefig(f'./img/{title}.png')
+    plt.show()
