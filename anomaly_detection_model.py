@@ -85,6 +85,7 @@ label_list = np.where(torch.cat(label_list).numpy() ==0 , 1 , 0)
 print('AE novelty detection performance',return_result(novelty_detection,label_list))
 print('AE novelty detection performance',confusion_matrix(novelty_detection,label_list))
 
+
 #%% Reconstruction이 효과적으로 되지 않았던 이미지 데이터 시각화 - ae
 feature_list_low = []
 feature_list_high = []
